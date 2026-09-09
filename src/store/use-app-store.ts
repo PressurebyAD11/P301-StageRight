@@ -24,7 +24,7 @@ export type AppStore = AppState & AppStoreActions
 
 const STORAGE_KEY = "stageright-app-state"
 
-function isValidPersistedState(value: unknown): value is AppState {
+export function isValidPersistedState(value: unknown): value is AppState {
   if (!value || typeof value !== "object") {
     return false
   }
@@ -33,8 +33,37 @@ function isValidPersistedState(value: unknown): value is AppState {
   return Array.isArray(candidate.categories) && Array.isArray(candidate.alerts) && Array.isArray(candidate.staff)
 }
 
-function getInitialState(): AppState {
+export function getInitialState(): AppState {
   return createSeedState()
+}
+
+export function hydratePersistedAppState(
+  persistedState: unknown,
+  version: number,
+  fallbackState: AppState = getInitialState(),
+): AppState {
+  if (version !== SCHEMA_VERSION || !isValidPersistedState(persistedState)) {
+    return fallbackState
+  }
+
+  return recomputeAppState({
+    ...persistedState,
+    schemaVersion: SCHEMA_VERSION,
+  })
+}
+
+export function mergePersistedAppState(currentState: AppState, persistedState: unknown): AppState {
+  if (!isValidPersistedState(persistedState)) {
+    return currentState
+  }
+
+  return {
+    ...currentState,
+    ...recomputeAppState({
+      ...persistedState,
+      schemaVersion: SCHEMA_VERSION,
+    }),
+  }
 }
 
 export const useAppStore = create<AppStore>()(
@@ -69,29 +98,8 @@ export const useAppStore = create<AppStore>()(
         staff: state.staff,
         overallReadiness: state.overallReadiness,
       }),
-      migrate: (persistedState, version) => {
-        if (version !== SCHEMA_VERSION || !isValidPersistedState(persistedState)) {
-          return getInitialState()
-        }
-
-        return recomputeAppState({
-          ...persistedState,
-          schemaVersion: SCHEMA_VERSION,
-        })
-      },
-      merge: (persistedState, currentState) => {
-        if (!isValidPersistedState(persistedState)) {
-          return currentState
-        }
-
-        return {
-          ...currentState,
-          ...recomputeAppState({
-            ...persistedState,
-            schemaVersion: SCHEMA_VERSION,
-          }),
-        }
-      },
+      migrate: (persistedState, version) => hydratePersistedAppState(persistedState, version),
+      merge: (persistedState, currentState) => mergePersistedAppState(currentState, persistedState),
     },
   ),
 )
