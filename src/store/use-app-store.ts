@@ -52,7 +52,7 @@ export function hydratePersistedAppState(
   })
 }
 
-export function mergePersistedAppState(currentState: AppState, persistedState: unknown): AppState {
+export function mergePersistedAppState(currentState: AppStore, persistedState: unknown): AppStore {
   if (!isValidPersistedState(persistedState)) {
     return currentState
   }
