@@ -183,6 +183,34 @@ function useAnimatedReadiness(target: number) {
   return value
 }
 
+function formatMetricValue(value: string | number | undefined): string {
+  if (value === undefined || value === null) {
+    return "-"
+  }
+
+  return String(value)
+}
+
+function getCategoryStatusReason(status: Status, unmetCriticalCount: number, unmetNonCriticalCount: number): string {
+  if (status === "action") {
+    if (unmetCriticalCount > 0) {
+      return `${unmetCriticalCount} critical requirement${unmetCriticalCount > 1 ? "s" : ""} currently unmet.`
+    }
+
+    return "A category metric has crossed its Action Required threshold."
+  }
+
+  if (status === "watch") {
+    if (unmetNonCriticalCount > 0) {
+      return `${unmetNonCriticalCount} non-critical requirement${unmetNonCriticalCount > 1 ? "s are" : " is"} still in progress.`
+    }
+
+    return "All critical requirements are met, but one or more watch-band metrics remain."
+  }
+
+  return "All critical requirements are met and metrics are within Ready thresholds."
+}
+
 export function DashboardPage() {
   const categories = useAppStore((state) => state.categories)
   const alerts = useAppStore((state) => state.alerts)
@@ -314,6 +342,7 @@ export function DashboardPage() {
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
   const categories = useAppStore((state) => state.categories)
+  const alerts = useAppStore((state) => state.alerts)
 
   const validCategoryId = useMemo(
     () => (categoryId && categoryIdSet.has(categoryId as CategoryId) ? (categoryId as CategoryId) : null),
@@ -321,6 +350,9 @@ export function CategoryPage() {
   )
 
   const category = categories.find((item) => item.id === validCategoryId)
+  const activeAlert = validCategoryId
+    ? alerts.find((alert) => alert.categoryId === validCategoryId && !alert.resolved)
+    : undefined
 
   if (!validCategoryId || !category) {
     return (
@@ -334,13 +366,147 @@ export function CategoryPage() {
     )
   }
 
+  const weightedContribution = category.readiness * category.weight
+  const unmetCriticalCount = category.requirements.filter((requirement) => requirement.critical && !requirement.satisfied).length
+  const unmetNonCriticalCount = category.requirements.filter(
+    (requirement) => !requirement.critical && !requirement.satisfied,
+  ).length
+  const statusReason = getCategoryStatusReason(category.status, unmetCriticalCount, unmetNonCriticalCount)
+
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card/70 p-6">
-      <h2 className="text-xl font-semibold">{category.name}</h2>
-      <p className="text-sm text-muted-foreground">Category detail shell is ready. Full detail content arrives in Phase 4.</p>
+    <section className="space-y-6">
       <Link to="/dashboard" className={cn(buttonVariants({ variant: "outline" }), "w-fit")}>
         Back to dashboard
       </Link>
+
+      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Category detail</p>
+            <h2 className="text-3xl font-semibold tracking-tight text-foreground">{category.name}</h2>
+            <p className="text-sm text-muted-foreground">{category.summary}</p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-xs text-muted-foreground">Current status</p>
+              <div className="mt-2">
+                <StatusBadge status={category.status} />
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-xs text-muted-foreground">Category readiness</p>
+              <p className="mt-2 text-2xl font-semibold">{category.readiness}%</p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-background/60 p-3">
+              <p className="text-xs text-muted-foreground">Readiness contribution</p>
+              <p className="mt-2 text-2xl font-semibold">{weightedContribution.toFixed(1)} pts</p>
+              <p className="text-xs text-muted-foreground">{Math.round(category.weight * 100)}% category weight</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+        <h3 className="text-lg font-semibold">Status Logic</h3>
+        <p className="mt-2 text-sm text-muted-foreground">{category.statusRule}</p>
+        <div className="mt-4 rounded-xl border border-border bg-background/50 p-3">
+          <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Why this status now</p>
+          <p className="mt-1 text-sm text-foreground">{statusReason}</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold">Requirements</h3>
+          <span className="text-xs text-muted-foreground">{category.requirements.length} total</span>
+        </div>
+
+        <div className="mt-4 overflow-hidden rounded-xl border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead className="bg-background/70 text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Requirement</th>
+                <th className="px-3 py-2 text-left font-medium">Priority</th>
+                <th className="px-3 py-2 text-left font-medium">Current</th>
+                <th className="px-3 py-2 text-left font-medium">Target</th>
+                <th className="px-3 py-2 text-left font-medium">State</th>
+              </tr>
+            </thead>
+            <tbody>
+              {category.requirements.map((requirement) => {
+                const rowTone = requirement.critical
+                  ? "bg-red-500/[0.06]"
+                  : "bg-transparent"
+
+                return (
+                  <tr key={requirement.id} className={cn("border-t border-border/80", rowTone)}>
+                    <td className="px-3 py-2 text-foreground">{requirement.label}</td>
+                    <td className="px-3 py-2">
+                      {requirement.critical ? (
+                        <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-300">
+                          Critical
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full border border-border bg-background/80 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                          Standard
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground">{formatMetricValue(requirement.current)}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{formatMetricValue(requirement.target)}</td>
+                    <td className="px-3 py-2">
+                      {requirement.satisfied ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Satisfied
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                          <AlertTriangle className="h-3.5 w-3.5" />
+                          Unsatisfied
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+        <h3 className="text-lg font-semibold">Active Alert</h3>
+
+        {activeAlert ? (
+          <div className="mt-4 rounded-xl border border-border bg-background/50 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={activeAlert.severity} size="sm" />
+                  <p className="font-medium text-foreground">{activeAlert.title}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{activeAlert.detail}</p>
+                {activeAlert.impact ? <p className="text-sm text-muted-foreground">Impact: {activeAlert.impact}</p> : null}
+                {activeAlert.timeContext ? (
+                  <p className="text-xs text-muted-foreground">Time context: {activeAlert.timeContext}</p>
+                ) : null}
+              </div>
+
+              <Button type="button" variant="secondary" disabled>
+                Resolve (Phase 5)
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-xl border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
+            No active alerts for this category right now.
+          </div>
+        )}
+      </div>
     </section>
   )
 }
