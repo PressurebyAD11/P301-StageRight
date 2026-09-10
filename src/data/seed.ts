@@ -3,7 +3,10 @@ import type { AppState } from "@/types"
 
 export const SCHEMA_VERSION = 1
 
-const seedTimestamp = "2026-09-09T14:08:00-04:00"
+const now = new Date()
+const seedTimestamp = new Date(now.getTime() - 12 * 60 * 1000).toISOString()
+const doorsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000 + 22 * 60 * 1000)
+const showAt = new Date(now.getTime() + 6 * 60 * 60 * 1000)
 
 const baseSeedState: AppState = {
   schemaVersion: SCHEMA_VERSION,
@@ -13,9 +16,9 @@ const baseSeedState: AppState = {
     name: "The Nova Tour",
     venue: "Halcyon Arena",
     capacity: 20000,
-    date: "2026-09-09T20:00:00-04:00",
-    doorsAt: "2026-09-09T18:30:00-04:00",
-    showAt: "2026-09-09T20:00:00-04:00",
+    date: showAt.toISOString(),
+    doorsAt: doorsAt.toISOString(),
+    showAt: showAt.toISOString(),
     expectedAttendance: 18742,
   },
   categories: [
