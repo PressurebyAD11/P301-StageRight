@@ -62,6 +62,7 @@ export function AppShell() {
   const expectedAttendance = useAppStore((state) => state.event.expectedAttendance)
   const categories = useAppStore((state) => state.categories)
   const signOut = useAppStore((state) => state.signOut)
+  const resetScenario = useAppStore((state) => state.resetScenario)
 
   const [nowMs, setNowMs] = useState(() => Date.now())
 
@@ -114,16 +115,37 @@ export function AppShell() {
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              signOut()
-              navigate("/login", { replace: true })
-            }}
-          >
-            Sign out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const shouldReset = window.confirm(
+                  "Reset the scenario back to the original 87% seed state? This will restore the three alerts and staff roster.",
+                )
+
+                if (!shouldReset) {
+                  return
+                }
+
+                resetScenario()
+              }}
+              aria-label="Reset scenario data to the seed state"
+            >
+              Reset scenario
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                signOut()
+                navigate("/login", { replace: true })
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
         </div>
       </header>
 

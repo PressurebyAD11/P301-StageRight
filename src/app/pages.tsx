@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useId, useMemo, useRef, useState } from "react"
 import type { FormEvent } from "react"
 import { AlertOctagon, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react"
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
@@ -165,11 +165,19 @@ function formatTimestamp(value: string): string {
 }
 
 function useAnimatedReadiness(target: number) {
-  const [value, setValue] = useState(0)
+  const [value, setValue] = useState(target)
+  const previousTargetRef = useRef(target)
 
   useEffect(() => {
+    const startValue = previousTargetRef.current
+    previousTargetRef.current = target
+
+    if (startValue === target) {
+      setValue(target)
+      return
+    }
+
     let frameId = 0
-    let startValue = 0
     const durationMs = 450
     const startTime = performance.now()
 
@@ -184,7 +192,6 @@ function useAnimatedReadiness(target: number) {
       }
     }
 
-    startValue = value
     frameId = requestAnimationFrame(tick)
 
     return () => cancelAnimationFrame(frameId)
@@ -243,7 +250,10 @@ export function DashboardPage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300">
               <span className="text-lg font-semibold">{animatedReadiness}%</span>
             </div>
-            <div aria-live="polite">
+            <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+              Readiness changed to {animatedReadiness} percent.
+            </div>
+            <div aria-live="polite" aria-atomic="true" className="space-y-1">
               <p className="text-4xl font-semibold tracking-tight">{animatedReadiness}%</p>
               <p className="text-xs text-muted-foreground">Overall readiness</p>
             </div>
@@ -275,8 +285,16 @@ export function DashboardPage() {
           </div>
 
           {activeAlerts.length === 0 ? (
-            <div className="mt-5 rounded-xl border border-dashed border-border bg-background/40 p-4 text-sm text-muted-foreground">
-              All clear — no issues require attention
+            <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-5 py-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+                <CheckCircle2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-semibold text-foreground">All clear — no issues require attention</h4>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  The event is tracking within plan and no active blockers remain.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="mt-4 space-y-3">
@@ -303,7 +321,10 @@ export function DashboardPage() {
 
                       <Link
                         to={`/category/${alert.categoryId}?resolve=1`}
-                        className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+                        className={cn(
+                          buttonVariants({ variant: "outline", size: "sm" }),
+                          "shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                        )}
                       >
                         Resolve
                       </Link>
@@ -326,7 +347,7 @@ export function DashboardPage() {
               <Link
                 key={category.id}
                 to={`/category/${category.id}`}
-                className="block rounded-xl border border-border bg-background/50 p-3 transition-colors hover:border-ring/60 hover:bg-background/80"
+                className="block rounded-xl border border-border bg-background/50 p-3 transition-colors hover:border-ring/60 hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -361,6 +382,8 @@ export function CategoryPage() {
 
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
   const [selectedStaffId, setSelectedStaffId] = useState("")
+  const dialogTitleId = useId()
+  const dialogDescriptionId = useId()
 
   const validCategoryId = useMemo(
     () => (categoryId && categoryIdSet.has(categoryId as CategoryId) ? (categoryId as CategoryId) : null),
@@ -378,9 +401,7 @@ export function CategoryPage() {
   const ticketingDeviceIssue = category?.id === "ticketing" ? category.details?.deviceIssue : undefined
   const qualifiedAvailableStaff =
     category?.id === "staffing"
-      ? staff.filter(
-          (member) => member.status === "available" && member.qualifications.includes("vip_security_lead"),
-        )
+      ? staff.filter((member) => member.status === "available" && member.qualifications.includes("vip_security_lead"))
       : []
 
   if (!validCategoryId || !category) {
@@ -561,9 +582,7 @@ export function CategoryPage() {
             </thead>
             <tbody>
               {category.requirements.map((requirement) => {
-                const rowTone = requirement.critical
-                  ? "bg-red-500/[0.06]"
-                  : "bg-transparent"
+                const rowTone = requirement.critical ? "bg-red-500/[0.06]" : "bg-transparent"
 
                 return (
                   <tr key={requirement.id} className={cn("border-t border-border/80", rowTone)}>
@@ -630,23 +649,27 @@ export function CategoryPage() {
                     }
                   />
 
-                  <DialogContent className="max-w-3xl bg-card text-card-foreground">
-                    <DialogHeader>
-                      <DialogTitle>Resolve VIP Staffing Alert</DialogTitle>
-                      <DialogDescription>
+                  <DialogContent
+                    className="w-[min(92vw,48rem)] max-w-[calc(100vw-2rem)] overflow-hidden bg-card text-card-foreground"
+                    aria-labelledby={dialogTitleId}
+                    aria-describedby={dialogDescriptionId}
+                  >
+                    <DialogHeader className="pr-10">
+                      <DialogTitle id={dialogTitleId}>Resolve VIP Staffing Alert</DialogTitle>
+                      <DialogDescription id={dialogDescriptionId}>
                         Fill the critical VIP Security Lead post to clear the staffing blocker.
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-5">
+                    <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
                       <div>
                         <h4 className="text-sm font-semibold text-foreground">VIP entrance posts</h4>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {staffingPosts.length} posts tracked for VIP entrance coverage.
                         </p>
 
-                        <div className="mt-3 overflow-hidden rounded-xl border border-border">
-                          <table className="w-full border-collapse text-sm">
+                        <div className="mt-3 overflow-x-auto rounded-xl border border-border">
+                          <table className="w-full min-w-[32rem] border-collapse text-sm">
                             <thead className="bg-background/70 text-muted-foreground">
                               <tr>
                                 <th className="px-3 py-2 text-left font-medium">Post</th>
@@ -705,7 +728,7 @@ export function CategoryPage() {
 
                         {qualifiedAvailableStaff.length === 0 ? (
                           <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-3 text-sm text-muted-foreground">
-                            No qualified staff are currently available. Assignment is disabled until an eligible member is available.
+                            No qualified staff available — escalate. Assignment is disabled until an eligible member is available.
                           </div>
                         ) : (
                           <div className="mt-3 space-y-2">
@@ -713,7 +736,7 @@ export function CategoryPage() {
                               <label
                                 key={member.id}
                                 className={cn(
-                                  "flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background/50 p-3 transition-colors",
+                                  "flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background/50 p-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50",
                                   member.id === selectedStaffId ? "border-ring/70" : "hover:border-border/80",
                                 )}
                               >
@@ -724,7 +747,7 @@ export function CategoryPage() {
                                     value={member.id}
                                     checked={member.id === selectedStaffId}
                                     onChange={(event) => setSelectedStaffId(event.target.value)}
-                                    className="mt-1 h-4 w-4 accent-emerald-500"
+                                    className="mt-1 h-4 w-4 accent-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                   />
                                   <div>
                                     <p className="text-sm font-medium text-foreground">{member.name}</p>
@@ -746,11 +769,7 @@ export function CategoryPage() {
                     </div>
 
                     <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setResolveDialogOpen(false)}
-                      >
+                      <Button type="button" variant="outline" onClick={() => setResolveDialogOpen(false)}>
                         Cancel
                       </Button>
                       <Button
@@ -773,15 +792,19 @@ export function CategoryPage() {
                     }
                   />
 
-                  <DialogContent className="max-w-2xl bg-card text-card-foreground">
-                    <DialogHeader>
-                      <DialogTitle>Resolve Merchandise Delivery Delay</DialogTitle>
-                      <DialogDescription>
+                  <DialogContent
+                    className="w-[min(92vw,40rem)] max-w-[calc(100vw-2rem)] overflow-hidden bg-card text-card-foreground"
+                    aria-labelledby={dialogTitleId}
+                    aria-describedby={dialogDescriptionId}
+                  >
+                    <DialogHeader className="pr-10">
+                      <DialogTitle id={dialogTitleId}>Resolve Merchandise Delivery Delay</DialogTitle>
+                      <DialogDescription id={dialogDescriptionId}>
                         Confirm the revised delivery plan to clear the merchandise watch alert.
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-lg border border-border bg-background/60 p-3">
                           <p className="text-xs text-muted-foreground">Delayed item</p>
@@ -797,8 +820,8 @@ export function CategoryPage() {
                         </div>
                       </div>
 
-                      <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full border-collapse text-sm">
+                      <div className="overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full min-w-[28rem] border-collapse text-sm">
                           <thead className="bg-background/70 text-muted-foreground">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium">Metric</th>
@@ -848,15 +871,19 @@ export function CategoryPage() {
                     }
                   />
 
-                  <DialogContent className="max-w-2xl bg-card text-card-foreground">
-                    <DialogHeader>
-                      <DialogTitle>Resolve Section 114 Scanner Alert</DialogTitle>
-                      <DialogDescription>
+                  <DialogContent
+                    className="w-[min(92vw,40rem)] max-w-[calc(100vw-2rem)] overflow-hidden bg-card text-card-foreground"
+                    aria-labelledby={dialogTitleId}
+                    aria-describedby={dialogDescriptionId}
+                  >
+                    <DialogHeader className="pr-10">
+                      <DialogTitle id={dialogTitleId}>Resolve Section 114 Scanner Alert</DialogTitle>
+                      <DialogDescription id={dialogDescriptionId}>
                         Restore coverage at Section 114 to return Ticketing / Entry to Ready.
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="rounded-lg border border-border bg-background/60 p-3">
                           <p className="text-xs text-muted-foreground">Offline device</p>
@@ -872,8 +899,8 @@ export function CategoryPage() {
                         </div>
                       </div>
 
-                      <div className="overflow-hidden rounded-xl border border-border">
-                        <table className="w-full border-collapse text-sm">
+                      <div className="overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full min-w-[28rem] border-collapse text-sm">
                           <thead className="bg-background/70 text-muted-foreground">
                             <tr>
                               <th className="px-3 py-2 text-left font-medium">Metric</th>
