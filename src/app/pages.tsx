@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { getStatusBreakdown, sortAlertsBySeverity } from "@/lib/dashboard"
+import { getOverallEventStatus, getStatusBreakdown, sortAlertsBySeverity } from "@/lib/dashboard"
 import { cn } from "cn"
 import { useAppStore } from "@/store/use-app-store"
 import type { CategoryId, Status } from "@/types"
@@ -137,6 +137,12 @@ const statusDisplay: Record<Status, { label: string; icon: typeof CheckCircle2; 
   },
 }
 
+const heroStatusTextClass: Record<Status, string> = {
+  ready: "text-emerald-300",
+  watch: "text-amber-300",
+  action: "text-red-400",
+}
+
 function StatusBadge({ status, size = "md" }: { status: Status; size?: "sm" | "md" }) {
   const config = statusDisplay[status]
   const Icon = config.icon
@@ -200,6 +206,45 @@ function useAnimatedReadiness(target: number) {
   return value
 }
 
+function ReadinessGauge({ value, status }: { value: number; status: Status }) {
+  const gaugeValue = Math.max(0, Math.min(100, value))
+  const size = 64
+  const strokeWidth = 8
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const progressOffset = circumference * (1 - gaugeValue / 100)
+  const arcClassName =
+    status === "action" ? "text-red-400" : status === "watch" ? "text-amber-300" : "text-emerald-300"
+
+  return (
+    <div className="relative h-16 w-16">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90" aria-hidden="true">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-emerald-500/20"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={progressOffset}
+          className={cn(arcClassName, "transition-[stroke-dashoffset] duration-500 ease-out")}
+        />
+      </svg>
+    </div>
+  )
+}
+
 function formatMetricValue(value: string | number | undefined): string {
   if (value === undefined || value === null) {
     return "-"
@@ -234,6 +279,7 @@ export function DashboardPage() {
   const overallReadiness = useAppStore((state) => state.overallReadiness)
 
   const breakdown = useMemo(() => getStatusBreakdown(categories), [categories])
+  const overallStatus = useMemo(() => getOverallEventStatus(categories), [categories])
   const activeAlerts = useMemo(() => sortAlertsBySeverity(alerts), [alerts])
   const animatedReadiness = useAnimatedReadiness(overallReadiness)
 
@@ -247,9 +293,7 @@ export function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-emerald-500/35 bg-emerald-500/10 text-emerald-300">
-              <span className="text-lg font-semibold">{animatedReadiness}%</span>
-            </div>
+            <ReadinessGauge value={animatedReadiness} status={overallStatus} />
             <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
               Readiness changed to {animatedReadiness} percent.
             </div>
@@ -261,17 +305,23 @@ export function DashboardPage() {
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
-          {(["ready", "watch", "action"] as const).map((status) => (
-            <div key={status} className="rounded-xl border border-border bg-background/60 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <StatusBadge status={status} size="sm" />
-                <span className="text-2xl font-semibold">{breakdown[status]}</span>
+          {(["ready", "watch", "action"] as const).map((status) => {
+            const config = statusDisplay[status]
+            const Icon = config.icon
+
+            return (
+              <div
+                key={status}
+                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background/60 p-3 text-center"
+              >
+                <span className="text-3xl font-semibold leading-none">{breakdown[status]}</span>
+                <span className={cn("inline-flex items-center gap-1.5 text-sm font-medium", heroStatusTextClass[status])}>
+                  <Icon className="h-3.5 w-3.5" />
+                  {config.label}
+                </span>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {status === "ready" ? "Ready" : status === "watch" ? "Watch" : "Action Required"}
-              </p>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

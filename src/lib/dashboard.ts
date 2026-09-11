@@ -18,6 +18,20 @@ export function getStatusBreakdown(categories: Category[]): StatusBreakdown {
   )
 }
 
+export function getOverallEventStatus(categories: Category[]): Status {
+  const breakdown = getStatusBreakdown(categories)
+
+  if (breakdown.action > 0) {
+    return "action"
+  }
+
+  if (breakdown.watch > 0) {
+    return "watch"
+  }
+
+  return "ready"
+}
+
 export function sortAlertsBySeverity(alerts: Alert[]): Alert[] {
   return [...alerts]
     .filter((alert) => !alert.resolved)
