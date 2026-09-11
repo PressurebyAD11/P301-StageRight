@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import { AlertOctagon, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react"
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
 
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -302,10 +302,10 @@ export function DashboardPage() {
                       </div>
 
                       <Link
-                        to={`/category/${alert.categoryId}`}
+                        to={`/category/${alert.categoryId}?resolve=1`}
                         className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
                       >
-                        View
+                        Resolve
                       </Link>
                     </div>
                   </div>
@@ -351,10 +351,13 @@ export function DashboardPage() {
 
 export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const categories = useAppStore((state) => state.categories)
   const alerts = useAppStore((state) => state.alerts)
   const staff = useAppStore((state) => state.staff)
   const assignVipSecurityLead = useAppStore((state) => state.assignVipSecurityLead)
+  const resolveMerchandiseDelivery = useAppStore((state) => state.resolveMerchandiseDelivery)
+  const restoreSectionScanner = useAppStore((state) => state.restoreSectionScanner)
 
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
   const [selectedStaffId, setSelectedStaffId] = useState("")
@@ -368,8 +371,11 @@ export function CategoryPage() {
   const activeAlert = validCategoryId
     ? alerts.find((alert) => alert.categoryId === validCategoryId && !alert.resolved)
     : undefined
+  const shouldAutoOpenResolve = searchParams.get("resolve") === "1"
 
   const staffingPosts = category?.id === "staffing" ? category.details?.staffingPosts ?? [] : []
+  const delayedDelivery = category?.id === "merchandise" ? category.details?.delayedDelivery : undefined
+  const ticketingDeviceIssue = category?.id === "ticketing" ? category.details?.deviceIssue : undefined
   const qualifiedAvailableStaff =
     category?.id === "staffing"
       ? staff.filter(
@@ -412,6 +418,24 @@ export function CategoryPage() {
     })
   }, [resolveDialogOpen, qualifiedAvailableStaff])
 
+  useEffect(() => {
+    if (!shouldAutoOpenResolve || !activeAlert) {
+      return
+    }
+
+    setResolveDialogOpen(true)
+  }, [activeAlert, shouldAutoOpenResolve])
+
+  const handleResolveDialogOpenChange = (open: boolean) => {
+    setResolveDialogOpen(open)
+
+    if (!open && searchParams.get("resolve") === "1") {
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.delete("resolve")
+      setSearchParams(nextParams)
+    }
+  }
+
   const handleAssignVipSecurityLead = () => {
     if (!selectedStaffId) {
       return
@@ -428,9 +452,47 @@ export function CategoryPage() {
       toast.success(
         `VIP Security Lead assigned - Staffing updated (${previousReadiness}% -> ${nextReadiness}%, ${staffingStatus === "watch" ? "Watch" : "updated"}).`,
       )
-      setResolveDialogOpen(false)
+      handleResolveDialogOpenChange(false)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Assignment failed"
+      toast.error(message)
+    }
+  }
+
+  const handleResolveMerchandise = () => {
+    const previousReadiness = useAppStore.getState().overallReadiness
+
+    try {
+      resolveMerchandiseDelivery()
+      const nextState = useAppStore.getState()
+      const nextReadiness = nextState.overallReadiness
+      const merchandiseStatus = nextState.categories.find((item) => item.id === "merchandise")?.status
+
+      toast.success(
+        `Delivery confirmed - Merchandise updated (${previousReadiness}% -> ${nextReadiness}%, ${merchandiseStatus === "ready" ? "Ready" : "updated"}).`,
+      )
+      handleResolveDialogOpenChange(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Merchandise resolution failed"
+      toast.error(message)
+    }
+  }
+
+  const handleRestoreScanner = () => {
+    const previousReadiness = useAppStore.getState().overallReadiness
+
+    try {
+      restoreSectionScanner()
+      const nextState = useAppStore.getState()
+      const nextReadiness = nextState.overallReadiness
+      const ticketingStatus = nextState.categories.find((item) => item.id === "ticketing")?.status
+
+      toast.success(
+        `Section 114 scanner restored - Ticketing updated (${previousReadiness}% -> ${nextReadiness}%, ${ticketingStatus === "ready" ? "Ready" : "updated"}).`,
+      )
+      handleResolveDialogOpenChange(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Scanner restoration failed"
       toast.error(message)
     }
   }
@@ -559,7 +621,7 @@ export function CategoryPage() {
               </div>
 
               {category.id === "staffing" && activeAlert.resolutionType === "assignStaff" ? (
-                <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+                <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
                   <DialogTrigger
                     render={
                       <Button type="button" variant="secondary">
@@ -701,9 +763,157 @@ export function CategoryPage() {
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
+              ) : category.id === "merchandise" && activeAlert.resolutionType === "confirmDelivery" ? (
+                <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
+                  <DialogTrigger
+                    render={
+                      <Button type="button" variant="secondary">
+                        Resolve
+                      </Button>
+                    }
+                  />
+
+                  <DialogContent className="max-w-2xl bg-card text-card-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Resolve Merchandise Delivery Delay</DialogTitle>
+                      <DialogDescription>
+                        Confirm the revised delivery plan to clear the merchandise watch alert.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                          <p className="text-xs text-muted-foreground">Delayed item</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {delayedDelivery?.item ?? "Tour merchandise shipment"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                          <p className="text-xs text-muted-foreground">Affected stands</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {delayedDelivery?.affectedStands.join(", ") ?? "East Concourse"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-xl border border-border">
+                        <table className="w-full border-collapse text-sm">
+                          <thead className="bg-background/70 text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">Metric</th>
+                              <th className="px-3 py-2 text-left font-medium">Current</th>
+                              <th className="px-3 py-2 text-left font-medium">Target</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-t border-border/80">
+                              <td className="px-3 py-2 text-foreground">Delivery ETA</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {delayedDelivery
+                                  ? `${delayedDelivery.originalEta} -> ${delayedDelivery.revisedEta}`
+                                  : "2:00 PM -> 4:15 PM"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">Received before setup window closes</td>
+                            </tr>
+                            <tr className="border-t border-border/80">
+                              <td className="px-3 py-2 text-foreground">Operational impact</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {delayedDelivery?.impact ?? "Crew loses 75 minutes of setup time before doors."}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">Stand setup confirmed before doors</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => handleResolveDialogOpenChange(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={handleResolveMerchandise}>
+                        Confirm Revised Setup Plan
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              ) : category.id === "ticketing" && activeAlert.resolutionType === "restoreDevice" ? (
+                <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
+                  <DialogTrigger
+                    render={
+                      <Button type="button" variant="secondary">
+                        Resolve
+                      </Button>
+                    }
+                  />
+
+                  <DialogContent className="max-w-2xl bg-card text-card-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Resolve Section 114 Scanner Alert</DialogTitle>
+                      <DialogDescription>
+                        Restore coverage at Section 114 to return Ticketing / Entry to Ready.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                          <p className="text-xs text-muted-foreground">Offline device</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {ticketingDeviceIssue ? `${ticketingDeviceIssue.section} scanner` : "Section 114 scanner"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                          <p className="text-xs text-muted-foreground">Backup options</p>
+                          <p className="mt-1 text-sm font-medium text-foreground">
+                            {ticketingDeviceIssue?.backupOptions.join(" | ") ?? "Deploy backup handheld | Dispatch entry tech"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-xl border border-border">
+                        <table className="w-full border-collapse text-sm">
+                          <thead className="bg-background/70 text-muted-foreground">
+                            <tr>
+                              <th className="px-3 py-2 text-left font-medium">Metric</th>
+                              <th className="px-3 py-2 text-left font-medium">Current</th>
+                              <th className="px-3 py-2 text-left font-medium">Target</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-t border-border/80">
+                              <td className="px-3 py-2 text-foreground">Last heartbeat</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {ticketingDeviceIssue ? `${ticketingDeviceIssue.lastHeartbeatMinutes}m ago` : "11m ago"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">0m ago (online)</td>
+                            </tr>
+                            <tr className="border-t border-border/80">
+                              <td className="px-3 py-2 text-foreground">Scanner uptime</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {ticketingDeviceIssue ? `${ticketingDeviceIssue.uptimePercent}%` : "98%"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">98%+ with backup deployed</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button type="button" variant="outline" onClick={() => handleResolveDialogOpenChange(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" onClick={handleRestoreScanner}>
+                        Deploy Backup Scanner
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               ) : (
                 <Button type="button" variant="secondary" disabled>
-                  Resolve (Phase 5)
+                  Resolve
                 </Button>
               )}
             </div>
