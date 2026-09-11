@@ -22,11 +22,14 @@ Every category resolves to one of three states, driven by severity rules rather 
 
 The Issues Requiring Attention panel stays prominent no matter how high the readiness score climbs.
 
+The readiness gauge reinforces this: its color is driven by the most severe active status, not by the percentage — **red** when anything is Action Required, **amber** when anything is on Watch, **green** only when everything is clear. So the scenario opens at 87% with a *red* ring (there's an active blocker), and the ring won't turn fully green until every category is genuinely clear — even after all alerts are resolved, it holds at amber if a category remains on Watch. The tool won't flatter a high number into looking finished.
+
 ---
 
 ## Features
 
 - **Event readiness dashboard** — an overall readiness score with a Ready / Watch / Action Required breakdown, framed by the guiding question "Are we ready for tonight?"
+- **Severity-colored readiness gauge** — a circular gauge that fills to the readiness percentage and takes its color from the worst active status (red / amber / green), so a high number can't read as "all good" while a blocker is unresolved
 - **Issues Requiring Attention** — unresolved alerts sorted by severity, each deep-linking straight to its resolution flow
 - **Operational grid** — all eight operational categories (Staffing, Security, Ticketing/Entry, Concessions, Parking, VIP, Merchandise, Venue/Facilities) with live status and one-line summaries
 - **Category detail views** — per-category requirements, current-vs-target values, the status logic behind the state, and a plain-language "why this status now"
