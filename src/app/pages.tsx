@@ -2,9 +2,19 @@ import { useEffect, useMemo, useState } from "react"
 import type { FormEvent } from "react"
 import { AlertOctagon, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react"
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom"
+import { toast } from "sonner"
 
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { getStatusBreakdown, sortAlertsBySeverity } from "@/lib/dashboard"
 import { cn } from "cn"
 import { useAppStore } from "@/store/use-app-store"
@@ -343,6 +353,11 @@ export function CategoryPage() {
   const { categoryId } = useParams<{ categoryId: string }>()
   const categories = useAppStore((state) => state.categories)
   const alerts = useAppStore((state) => state.alerts)
+  const staff = useAppStore((state) => state.staff)
+  const assignVipSecurityLead = useAppStore((state) => state.assignVipSecurityLead)
+
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
+  const [selectedStaffId, setSelectedStaffId] = useState("")
 
   const validCategoryId = useMemo(
     () => (categoryId && categoryIdSet.has(categoryId as CategoryId) ? (categoryId as CategoryId) : null),
@@ -353,6 +368,14 @@ export function CategoryPage() {
   const activeAlert = validCategoryId
     ? alerts.find((alert) => alert.categoryId === validCategoryId && !alert.resolved)
     : undefined
+
+  const staffingPosts = category?.id === "staffing" ? category.details?.staffingPosts ?? [] : []
+  const qualifiedAvailableStaff =
+    category?.id === "staffing"
+      ? staff.filter(
+          (member) => member.status === "available" && member.qualifications.includes("vip_security_lead"),
+        )
+      : []
 
   if (!validCategoryId || !category) {
     return (
@@ -372,6 +395,45 @@ export function CategoryPage() {
     (requirement) => !requirement.critical && !requirement.satisfied,
   ).length
   const statusReason = getCategoryStatusReason(category.status, unmetCriticalCount, unmetNonCriticalCount)
+
+  useEffect(() => {
+    if (!resolveDialogOpen) {
+      return
+    }
+
+    if (qualifiedAvailableStaff.length === 0) {
+      setSelectedStaffId("")
+      return
+    }
+
+    setSelectedStaffId((currentSelectedId) => {
+      const isStillValid = qualifiedAvailableStaff.some((member) => member.id === currentSelectedId)
+      return isStillValid ? currentSelectedId : qualifiedAvailableStaff[0].id
+    })
+  }, [resolveDialogOpen, qualifiedAvailableStaff])
+
+  const handleAssignVipSecurityLead = () => {
+    if (!selectedStaffId) {
+      return
+    }
+
+    const previousReadiness = useAppStore.getState().overallReadiness
+
+    try {
+      assignVipSecurityLead(selectedStaffId)
+      const nextState = useAppStore.getState()
+      const nextReadiness = nextState.overallReadiness
+      const staffingStatus = nextState.categories.find((item) => item.id === "staffing")?.status
+
+      toast.success(
+        `VIP Security Lead assigned - Staffing updated (${previousReadiness}% -> ${nextReadiness}%, ${staffingStatus === "watch" ? "Watch" : "updated"}).`,
+      )
+      setResolveDialogOpen(false)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Assignment failed"
+      toast.error(message)
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -496,9 +558,154 @@ export function CategoryPage() {
                 ) : null}
               </div>
 
-              <Button type="button" variant="secondary" disabled>
-                Resolve (Phase 5)
-              </Button>
+              {category.id === "staffing" && activeAlert.resolutionType === "assignStaff" ? (
+                <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+                  <DialogTrigger
+                    render={
+                      <Button type="button" variant="secondary">
+                        Resolve
+                      </Button>
+                    }
+                  />
+
+                  <DialogContent className="max-w-3xl bg-card text-card-foreground">
+                    <DialogHeader>
+                      <DialogTitle>Resolve VIP Staffing Alert</DialogTitle>
+                      <DialogDescription>
+                        Fill the critical VIP Security Lead post to clear the staffing blocker.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-5">
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">VIP entrance posts</h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {staffingPosts.length} posts tracked for VIP entrance coverage.
+                        </p>
+
+                        <div className="mt-3 overflow-hidden rounded-xl border border-border">
+                          <table className="w-full border-collapse text-sm">
+                            <thead className="bg-background/70 text-muted-foreground">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-medium">Post</th>
+                                <th className="px-3 py-2 text-left font-medium">Role</th>
+                                <th className="px-3 py-2 text-left font-medium">Priority</th>
+                                <th className="px-3 py-2 text-left font-medium">State</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {staffingPosts.map((post) => (
+                                <tr
+                                  key={post.id}
+                                  className={cn(
+                                    "border-t border-border/80",
+                                    post.critical ? "bg-red-500/[0.06]" : "bg-transparent",
+                                  )}
+                                >
+                                  <td className="px-3 py-2 text-foreground">{post.label}</td>
+                                  <td className="px-3 py-2 text-muted-foreground">{post.role}</td>
+                                  <td className="px-3 py-2">
+                                    {post.critical ? (
+                                      <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-300">
+                                        Critical
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center rounded-full border border-border bg-background/80 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                        Standard
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2">
+                                    {post.status === "confirmed" ? (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                        Confirmed
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        Unconfirmed
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-semibold text-foreground">Qualified available staff</h4>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Only available team members qualified for VIP Security Lead are shown.
+                        </p>
+
+                        {qualifiedAvailableStaff.length === 0 ? (
+                          <div className="mt-3 rounded-lg border border-dashed border-border bg-background/40 p-3 text-sm text-muted-foreground">
+                            No qualified staff are currently available. Assignment is disabled until an eligible member is available.
+                          </div>
+                        ) : (
+                          <div className="mt-3 space-y-2">
+                            {qualifiedAvailableStaff.map((member) => (
+                              <label
+                                key={member.id}
+                                className={cn(
+                                  "flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background/50 p-3 transition-colors",
+                                  member.id === selectedStaffId ? "border-ring/70" : "hover:border-border/80",
+                                )}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <input
+                                    type="radio"
+                                    name="vip-lead-assignee"
+                                    value={member.id}
+                                    checked={member.id === selectedStaffId}
+                                    onChange={(event) => setSelectedStaffId(event.target.value)}
+                                    className="mt-1 h-4 w-4 accent-emerald-500"
+                                  />
+                                  <div>
+                                    <p className="text-sm font-medium text-foreground">{member.name}</p>
+                                    <p className="text-xs text-muted-foreground">Status: {member.status}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Qualifications: {member.qualifications.join(", ")}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                                  Eligible
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <DialogFooter>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setResolveDialogOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleAssignVipSecurityLead}
+                        disabled={!selectedStaffId || qualifiedAvailableStaff.length === 0}
+                      >
+                        Assign VIP Security Lead
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <Button type="button" variant="secondary" disabled>
+                  Resolve (Phase 5)
+                </Button>
+              )}
             </div>
           </div>
         ) : (
