@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import type { FormEvent } from "react"
+import loginBg from "@/assets/login-background.png"
 import { AlertOctagon, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react"
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { toast } from "sonner"
@@ -16,6 +17,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { getOverallEventStatus, getStatusBreakdown, sortAlertsBySeverity } from "@/lib/dashboard"
+import {
+  criticalBadgeClass,
+  criticalRowClass,
+  eligibleBadgeClass,
+  emptyStateReadyClass,
+  emptyStateReadyIconClass,
+  gaugeTrackClass,
+  satisfiedBadgeClass,
+  standardBadgeClass,
+  statusBadgeClass,
+  statusTextClass,
+  unsatisfiedBadgeClass,
+} from "@/lib/status-styles"
 import { cn } from "cn"
 import { useAppStore } from "@/store/use-app-store"
 import type { CategoryId, Status } from "@/types"
@@ -68,79 +82,98 @@ export function LoginPage() {
   }
 
   return (
-    <div className="dark flex min-h-svh items-center justify-center bg-background px-4 py-8 text-foreground">
-      <Card className="w-full max-w-md border-border/80 bg-card/95 p-6">
-        <div className="mb-6 space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">StageRight</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Operations Login</h1>
-          <p className="text-sm text-muted-foreground">Sign in to tonight&apos;s command center.</p>
+    <div
+      className="dark relative flex min-h-svh flex-col items-center text-foreground"
+      style={{ backgroundImage: `url(${loginBg})`, backgroundSize: "cover", backgroundPosition: "center center", backgroundRepeat: "no-repeat" }}
+    >
+      {/* Dark overlay — keeps live-event atmosphere visible at ~58% black */}
+      <div className="absolute inset-0 bg-black/[0.58]" aria-hidden="true" />
+
+      {/* All page content sits above the overlay */}
+      <div className="relative z-10 flex w-full flex-col items-center">
+
+      {/* Hero branding section */}
+      <div className="flex w-full flex-col items-center gap-6 px-4 pt-20 pb-16">
+        <div className="flex items-center gap-4">
+          <svg
+            viewBox="0 0 44 44"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-14 w-14 shrink-0"
+            aria-hidden="true"
+          >
+            <rect width="44" height="44" rx="10" fill="currentColor" className="text-primary" />
+            <path d="M16 13l18 9-18 9V13z" fill="white" />
+          </svg>
+          <span className="text-5xl font-black tracking-tight sm:text-6xl">
+            Stage<span className="text-primary">Right</span>
+          </span>
         </div>
+        <p className="text-center text-xs font-medium uppercase tracking-[0.25em] text-muted-foreground">
+          Live Event Operations Command Center
+        </p>
+      </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="morgan@venueops.com"
-            />
+      <div className="w-full border-t border-border/50" />
+
+      {/* Login form */}
+      <div className="flex w-full justify-center px-4 py-10">
+        <Card className="w-full max-w-md border-border/80 p-6 shadow-lg backdrop-blur-sm" style={{ background: "rgba(15, 16, 18, 0.92)" }}>
+          <div className="mb-6 space-y-1.5">
+            <h1 className="text-2xl font-bold tracking-tight">Operations Login</h1>
+            <p className="text-sm text-muted-foreground">Sign in to access tonight&apos;s command center.</p>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="Enter password"
-            />
-          </div>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="morgan@venueops.com"
+              />
+            </div>
 
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <div className="space-y-2">
+              <label className="text-sm font-medium" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                placeholder="Enter password"
+              />
+            </div>
 
-          <Button type="submit" className="w-full">
-            Sign in
-          </Button>
-          <Button type="button" variant="secondary" className="w-full" onClick={signInAsManager}>
-            Sign in as Venue Operations Manager
-          </Button>
-        </form>
-      </Card>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+            <Button type="submit" variant="secondary" className="w-full">
+              Sign in
+            </Button>
+            <Button type="button" className="w-full" onClick={signInAsManager}>
+              Sign in as Venue Operations Manager
+            </Button>
+          </form>
+        </Card>
+      </div>
+
+      </div>{/* end z-10 content wrapper */}
     </div>
   )
 }
 
 const statusDisplay: Record<Status, { label: string; icon: typeof CheckCircle2; className: string }> = {
-  ready: {
-    label: "Ready",
-    icon: CheckCircle2,
-    className: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-  },
-  watch: {
-    label: "Watch",
-    icon: AlertTriangle,
-    className: "border-amber-500/40 bg-amber-500/10 text-amber-300",
-  },
-  action: {
-    label: "Action Required",
-    icon: AlertOctagon,
-    className: "border-red-500/40 bg-red-500/10 text-red-300",
-  },
-}
-
-const heroStatusTextClass: Record<Status, string> = {
-  ready: "text-emerald-300",
-  watch: "text-amber-300",
-  action: "text-red-400",
+  ready: { label: "Ready", icon: CheckCircle2, className: statusBadgeClass.ready },
+  watch: { label: "Watch", icon: AlertTriangle, className: statusBadgeClass.watch },
+  action: { label: "Action Required", icon: AlertOctagon, className: statusBadgeClass.action },
 }
 
 function StatusBadge({ status, size = "md" }: { status: Status; size?: "sm" | "md" }) {
@@ -213,8 +246,7 @@ function ReadinessGauge({ value, status }: { value: number; status: Status }) {
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
   const progressOffset = circumference * (1 - gaugeValue / 100)
-  const arcClassName =
-    status === "action" ? "text-red-400" : status === "watch" ? "text-amber-300" : "text-emerald-300"
+  const arcClassName = statusTextClass[status]
 
   return (
     <div className="relative h-16 w-16">
@@ -226,7 +258,7 @@ function ReadinessGauge({ value, status }: { value: number; status: Status }) {
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-emerald-500/20"
+          className={gaugeTrackClass}
         />
         <circle
           cx={size / 2}
@@ -285,20 +317,20 @@ export function DashboardPage() {
 
   return (
     <section className="space-y-6">
-      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-border bg-card/95 p-5 shadow-md sm:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Event readiness</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground">Are we ready for tonight?</h2>
+            <h2 className="text-4xl font-black tracking-tight text-foreground">Are we ready for tonight?</h2>
           </div>
 
-          <div className="flex items-center gap-4 rounded-xl border border-border bg-background/60 px-4 py-3">
+          <div className="flex items-center gap-4 rounded-xl border border-border bg-background/40 px-5 py-4">
             <ReadinessGauge value={animatedReadiness} status={overallStatus} />
             <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
               Readiness changed to {animatedReadiness} percent.
             </div>
             <div aria-live="polite" aria-atomic="true" className="space-y-1">
-              <p className="text-4xl font-semibold tracking-tight">{animatedReadiness}%</p>
+              <p className="text-5xl font-black tracking-tight">{animatedReadiness}%</p>
               <p className="text-xs text-muted-foreground">Overall readiness</p>
             </div>
           </div>
@@ -312,10 +344,10 @@ export function DashboardPage() {
             return (
               <div
                 key={status}
-                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background/60 p-3 text-center"
+                className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-border bg-background/40 p-3 text-center"
               >
-                <span className="text-3xl font-semibold leading-none">{breakdown[status]}</span>
-                <span className={cn("inline-flex items-center gap-1.5 text-sm font-medium", heroStatusTextClass[status])}>
+                <span className="text-4xl font-black leading-none">{breakdown[status]}</span>
+                <span className={cn("inline-flex items-center gap-1.5 text-sm font-medium", statusTextClass[status])}>
                   <Icon className="h-3.5 w-3.5" />
                   {config.label}
                 </span>
@@ -326,17 +358,17 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_1.85fr]">
-        <section className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm sm:p-5">
+        <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-md sm:p-5">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold">Issues Requiring Attention</h3>
-            <span className="rounded-full border border-border bg-background/60 px-2 py-1 text-xs text-muted-foreground">
+            <h3 className="text-xl font-semibold">Issues Requiring Attention</h3>
+            <span className="rounded-full border border-border bg-background/40 px-2 py-1 text-xs text-muted-foreground">
               {activeAlerts.length}
             </span>
           </div>
 
           {activeAlerts.length === 0 ? (
-            <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-emerald-500/30 bg-emerald-500/5 px-5 py-6 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-300">
+            <div className={cn("mt-5 flex flex-col items-center justify-center gap-3 rounded-2xl border px-5 py-6 text-center", emptyStateReadyClass)}>
+              <div className={cn("flex h-12 w-12 items-center justify-center rounded-full border", emptyStateReadyIconClass)}>
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
@@ -354,13 +386,13 @@ export function DashboardPage() {
                 return (
                   <div
                     key={alert.id}
-                    className="rounded-xl border border-border bg-background/50 p-3 transition-colors hover:border-border/80"
+                    className="rounded-xl border border-border bg-background/40 p-4 transition-colors hover:border-border/80"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <StatusBadge status={status} size="sm" />
-                          <p className="font-medium text-foreground">{alert.title}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StatusBadge status={status} />
+                          <p className="font-semibold text-foreground">{alert.title}</p>
                         </div>
                         <p className="text-sm text-muted-foreground">{alert.detail}</p>
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -372,7 +404,7 @@ export function DashboardPage() {
                       <Link
                         to={`/category/${alert.categoryId}?resolve=1`}
                         className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
+                          buttonVariants({ variant: "default", size: "sm" }),
                           "shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                         )}
                       >
@@ -386,9 +418,9 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm sm:p-5">
+        <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-md sm:p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className="text-lg font-semibold">Operational Grid</h3>
+            <h3 className="text-xl font-semibold">Operational Grid</h3>
             <span className="text-xs text-muted-foreground">{categories.length} categories</span>
           </div>
 
@@ -397,14 +429,14 @@ export function DashboardPage() {
               <Link
                 key={category.id}
                 to={`/category/${category.id}`}
-                className="block rounded-xl border border-border bg-background/50 p-3 transition-colors hover:border-ring/60 hover:bg-background/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="block rounded-xl border border-border bg-background/40 p-4 transition-colors hover:border-ring/60 hover:bg-background/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-base font-medium text-foreground">{category.name}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{category.summary}</p>
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-foreground">{category.name}</p>
+                    <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{category.summary}</p>
                   </div>
-                  <StatusBadge status={category.status} size="sm" />
+                  <StatusBadge status={category.status} />
                 </div>
 
                 <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
@@ -574,48 +606,48 @@ export function CategoryPage() {
         Back to dashboard
       </Link>
 
-      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-border bg-card/95 p-5 shadow-md sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">Category detail</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-foreground">{category.name}</h2>
+            <h2 className="text-4xl font-bold tracking-tight text-foreground">{category.name}</h2>
             <p className="text-sm text-muted-foreground">{category.summary}</p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border bg-background/60 p-3">
+            <div className="rounded-xl border border-border bg-background/40 p-3">
               <p className="text-xs text-muted-foreground">Current status</p>
               <div className="mt-2">
                 <StatusBadge status={category.status} />
               </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-background/60 p-3">
+            <div className="rounded-xl border border-border bg-background/40 p-3">
               <p className="text-xs text-muted-foreground">Category readiness</p>
-              <p className="mt-2 text-2xl font-semibold">{category.readiness}%</p>
+              <p className="mt-2 text-3xl font-bold">{category.readiness}%</p>
             </div>
 
-            <div className="rounded-xl border border-border bg-background/60 p-3">
+            <div className="rounded-xl border border-border bg-background/40 p-3">
               <p className="text-xs text-muted-foreground">Readiness contribution</p>
-              <p className="mt-2 text-2xl font-semibold">{weightedContribution.toFixed(1)} pts</p>
+              <p className="mt-2 text-3xl font-bold">{weightedContribution.toFixed(1)} pts</p>
               <p className="text-xs text-muted-foreground">{Math.round(category.weight * 100)}% category weight</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
-        <h3 className="text-lg font-semibold">Status Logic</h3>
+      <div className="rounded-2xl border border-border bg-card/95 p-5 shadow-md sm:p-6">
+        <h3 className="text-xl font-semibold">Status Logic</h3>
         <p className="mt-2 text-sm text-muted-foreground">{category.statusRule}</p>
-        <div className="mt-4 rounded-xl border border-border bg-background/50 p-3">
+        <div className="mt-4 rounded-xl border border-border bg-background/40 p-3">
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Why this status now</p>
           <p className="mt-1 text-sm text-foreground">{statusReason}</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
+      <div className="rounded-2xl border border-border bg-card/95 p-5 shadow-md sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="text-lg font-semibold">Requirements</h3>
+          <h3 className="text-xl font-semibold">Requirements</h3>
           <span className="text-xs text-muted-foreground">{category.requirements.length} total</span>
         </div>
 
@@ -632,18 +664,16 @@ export function CategoryPage() {
             </thead>
             <tbody>
               {category.requirements.map((requirement) => {
-                const rowTone = requirement.critical ? "bg-red-500/[0.06]" : "bg-transparent"
-
                 return (
-                  <tr key={requirement.id} className={cn("border-t border-border/80", rowTone)}>
+                  <tr key={requirement.id} className={cn("border-t border-border/80", requirement.critical ? criticalRowClass : "bg-transparent")}>
                     <td className="px-3 py-2 text-foreground">{requirement.label}</td>
                     <td className="px-3 py-2">
                       {requirement.critical ? (
-                        <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-300">
+                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", criticalBadgeClass)}>
                           Critical
                         </span>
                       ) : (
-                        <span className="inline-flex items-center rounded-full border border-border bg-background/80 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                        <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", standardBadgeClass)}>
                           Standard
                         </span>
                       )}
@@ -652,12 +682,12 @@ export function CategoryPage() {
                     <td className="px-3 py-2 text-muted-foreground">{formatMetricValue(requirement.target)}</td>
                     <td className="px-3 py-2">
                       {requirement.satisfied ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", satisfiedBadgeClass)}>
                           <CheckCircle2 className="h-3.5 w-3.5" />
                           Satisfied
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                        <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", unsatisfiedBadgeClass)}>
                           <AlertTriangle className="h-3.5 w-3.5" />
                           Unsatisfied
                         </span>
@@ -671,11 +701,11 @@ export function CategoryPage() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card/80 p-5 shadow-sm sm:p-6">
-        <h3 className="text-lg font-semibold">Active Alert</h3>
+      <div className="rounded-2xl border border-border bg-card/95 p-5 shadow-md sm:p-6">
+        <h3 className="text-xl font-semibold">Active Alert</h3>
 
         {activeAlert ? (
-          <div className="mt-4 rounded-xl border border-border bg-background/50 p-4">
+          <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -693,7 +723,7 @@ export function CategoryPage() {
                 <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
                   <DialogTrigger
                     render={
-                      <Button type="button" variant="secondary">
+                      <Button type="button" variant="default">
                         Resolve
                       </Button>
                     }
@@ -732,32 +762,29 @@ export function CategoryPage() {
                               {staffingPosts.map((post) => (
                                 <tr
                                   key={post.id}
-                                  className={cn(
-                                    "border-t border-border/80",
-                                    post.critical ? "bg-red-500/[0.06]" : "bg-transparent",
-                                  )}
+                                  className={cn("border-t border-border/80", post.critical ? criticalRowClass : "bg-transparent")}
                                 >
                                   <td className="px-3 py-2 text-foreground">{post.label}</td>
                                   <td className="px-3 py-2 text-muted-foreground">{post.role}</td>
                                   <td className="px-3 py-2">
                                     {post.critical ? (
-                                      <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-300">
+                                      <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", criticalBadgeClass)}>
                                         Critical
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center rounded-full border border-border bg-background/80 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                      <span className={cn("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", standardBadgeClass)}>
                                         Standard
                                       </span>
                                     )}
                                   </td>
                                   <td className="px-3 py-2">
                                     {post.status === "confirmed" ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", satisfiedBadgeClass)}>
                                         <CheckCircle2 className="h-3.5 w-3.5" />
                                         Confirmed
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/35 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                                      <span className={cn("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium", unsatisfiedBadgeClass)}>
                                         <AlertTriangle className="h-3.5 w-3.5" />
                                         Unconfirmed
                                       </span>
@@ -786,7 +813,7 @@ export function CategoryPage() {
                               <label
                                 key={member.id}
                                 className={cn(
-                                  "flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background/50 p-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50",
+                                  "flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-background/40 p-3 transition-colors focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/50",
                                   member.id === selectedStaffId ? "border-ring/70" : "hover:border-border/80",
                                 )}
                               >
@@ -808,7 +835,7 @@ export function CategoryPage() {
                                   </div>
                                 </div>
 
-                                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                                <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", eligibleBadgeClass)}>
                                   Eligible
                                 </span>
                               </label>
@@ -836,7 +863,7 @@ export function CategoryPage() {
                 <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
                   <DialogTrigger
                     render={
-                      <Button type="button" variant="secondary">
+                      <Button type="button" variant="default">
                         Resolve
                       </Button>
                     }
@@ -856,13 +883,13 @@ export function CategoryPage() {
 
                     <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <div className="rounded-lg border border-border bg-background/40 p-3">
                           <p className="text-xs text-muted-foreground">Delayed item</p>
                           <p className="mt-1 text-sm font-medium text-foreground">
                             {delayedDelivery?.item ?? "Tour merchandise shipment"}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <div className="rounded-lg border border-border bg-background/40 p-3">
                           <p className="text-xs text-muted-foreground">Affected stands</p>
                           <p className="mt-1 text-sm font-medium text-foreground">
                             {delayedDelivery?.affectedStands.join(", ") ?? "East Concourse"}
@@ -915,7 +942,7 @@ export function CategoryPage() {
                 <Dialog open={resolveDialogOpen} onOpenChange={handleResolveDialogOpenChange}>
                   <DialogTrigger
                     render={
-                      <Button type="button" variant="secondary">
+                      <Button type="button" variant="default">
                         Resolve
                       </Button>
                     }
@@ -935,13 +962,13 @@ export function CategoryPage() {
 
                     <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <div className="rounded-lg border border-border bg-background/40 p-3">
                           <p className="text-xs text-muted-foreground">Offline device</p>
                           <p className="mt-1 text-sm font-medium text-foreground">
                             {ticketingDeviceIssue ? `${ticketingDeviceIssue.section} scanner` : "Section 114 scanner"}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-border bg-background/60 p-3">
+                        <div className="rounded-lg border border-border bg-background/40 p-3">
                           <p className="text-xs text-muted-foreground">Backup options</p>
                           <p className="mt-1 text-sm font-medium text-foreground">
                             {ticketingDeviceIssue?.backupOptions.join(" | ") ?? "Deploy backup handheld | Dispatch entry tech"}
@@ -989,7 +1016,7 @@ export function CategoryPage() {
                   </DialogContent>
                 </Dialog>
               ) : (
-                <Button type="button" variant="secondary" disabled>
+                <Button type="button" variant="default" disabled>
                   Resolve
                 </Button>
               )}

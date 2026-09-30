@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { Outlet, useNavigate } from "react-router-dom"
+import { Outlet, ScrollRestoration, useNavigate } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/store/use-app-store"
@@ -85,40 +85,36 @@ export function AppShell() {
   return (
     <div className="dark min-h-svh bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-4 px-4 py-3 sm:px-6">
-          <div className="min-w-64 flex-1">
-            <p className="text-sm font-medium text-muted-foreground">Live Event Command Center</p>
-            <h1 className="text-xl font-semibold tracking-tight">{eventName}</h1>
-            <p className="text-sm text-muted-foreground">{formatEventDate(eventDate)}</p>
+        {/* Row 1: brand identity + controls */}
+        <div className="mx-auto flex w-full max-w-7xl items-center gap-3 px-4 pt-3 pb-2 sm:px-6">
+          <div className="flex shrink-0 items-center gap-2" aria-label="StageRight">
+            <svg
+              viewBox="0 0 44 44"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-7 w-7 shrink-0"
+              aria-hidden="true"
+            >
+              <rect width="44" height="44" rx="8" fill="currentColor" className="text-primary" />
+              <path d="M16 13l18 9-18 9V13z" fill="white" />
+            </svg>
+            <span className="text-sm font-black tracking-tight">
+              Stage<span className="text-primary">Right</span>
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3 lg:grid-cols-5">
-            <div>
-              <p className="text-muted-foreground">Doors</p>
-              <p className="font-medium">{formatEventTime(doorsAt)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Show</p>
-              <p className="font-medium">{formatEventTime(showAt)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Countdown</p>
-              <p className="font-medium">{countdownText}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Attendance</p>
-              <p className="font-medium">{expectedAttendance.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Last updated</p>
-              <p className="font-medium">{lastUpdatedText}</p>
-            </div>
+          <div className="h-5 w-px shrink-0 bg-border/60" aria-hidden="true" />
+
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-base font-bold tracking-tight">{eventName}</h1>
+            <p className="truncate text-xs text-muted-foreground">{formatEventDate(eventDate)}</p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               type="button"
-              variant="outline"
+              size="sm"
+              variant="secondary"
               onClick={() => {
                 const shouldReset = window.confirm(
                   "Reset the scenario back to the original 87% seed state? This will restore the three alerts and staff roster.",
@@ -137,7 +133,8 @@ export function AppShell() {
 
             <Button
               type="button"
-              variant="outline"
+              size="sm"
+              variant="default"
               onClick={() => {
                 signOut()
                 navigate("/login", { replace: true })
@@ -147,11 +144,39 @@ export function AppShell() {
             </Button>
           </div>
         </div>
+
+        {/* Row 2: 5 operational fields — always visible, never compete with branding */}
+        <div className="border-t border-border/40 bg-background/20">
+          <div className="mx-auto grid max-w-7xl grid-cols-5 px-4 py-2 sm:px-6">
+            <div className="border-r border-border/30 pr-4">
+              <p className="text-xs text-muted-foreground">Doors</p>
+              <p className="text-sm font-semibold">{formatEventTime(doorsAt)}</p>
+            </div>
+            <div className="border-r border-border/30 px-4">
+              <p className="text-xs text-muted-foreground">Show</p>
+              <p className="text-sm font-semibold">{formatEventTime(showAt)}</p>
+            </div>
+            <div className="border-r border-border/30 px-4">
+              <p className="text-xs text-muted-foreground">Countdown</p>
+              <p className="text-sm font-semibold tabular-nums">{countdownText}</p>
+            </div>
+            <div className="border-r border-border/30 px-4">
+              <p className="text-xs text-muted-foreground">Attendance</p>
+              <p className="text-sm font-semibold">{expectedAttendance.toLocaleString()}</p>
+            </div>
+            <div className="pl-4">
+              <p className="text-xs text-muted-foreground">Last updated</p>
+              <p className="text-sm font-semibold">{lastUpdatedText}</p>
+            </div>
+          </div>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl p-4 sm:p-6">
         <Outlet />
       </main>
+
+      <ScrollRestoration />
     </div>
   )
 }
