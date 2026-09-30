@@ -4,7 +4,7 @@ A single-screen operations dashboard that answers one question for a venue opera
 
 StageRight surfaces an overall event-readiness score, prioritizes the specific issues that need a human decision, and lets the manager resolve an issue and watch readiness respond in real time. It's built around one core principle: **severity over averages** — a high overall percentage can never hide a critical blocker.
 
-Built with React, TypeScript, Tailwind CSS v4, and shadcn/ui. Mock data only; state persists in the browser via `localStorage`.
+Built with React, TypeScript, Tailwind CSS v4, and shadcn/ui. Mock data only; state persists in the browser via `localStorage`. The UI is styled for a live-event production environment — dark cool-cast surfaces, electric blue accent, and a full-viewport login background photograph.
 
 ---
 
@@ -55,12 +55,25 @@ Resolving all three alerts brings readiness to roughly **95%** and the issues pa
 | Concern | Choice |
 |---|---|
 | Framework | React 18 + TypeScript, Vite |
-| Styling | Tailwind CSS v4, shadcn/ui, lucide-react |
+| Styling | Tailwind CSS v4 (OKLCH color tokens), shadcn/ui base-nova, lucide-react, Geist Variable font |
 | Routing | React Router |
 | State | Zustand (with `localStorage` persistence) |
 | Readiness logic | Pure functions in `src/lib` |
 | Tests | Vitest |
 | Data | Mock seed data — no backend |
+
+---
+
+## Visual design
+
+The UI is intentionally styled to feel like a live-event production environment, not a generic SaaS dashboard.
+
+- **Dark cool-cast theme** — all surface tokens use a subtle blue-shifted hue (OKLCH chroma 0.005–0.008, hue 258) so the palette reads as professional production gear rather than plain dark mode
+- **Electric blue accent** — `--primary` is `oklch(0.63 0.22 258)`, which propagates automatically to all shadcn buttons, focus rings, and interactive elements; it also echoes the stage lighting in the login background photograph
+- **Login background** — `src/assets/login-background.png` fills the full viewport behind a ~58% black overlay, keeping stage lighting and production equipment visible while the StageRight branding and login card remain visually dominant
+- **Two-row sticky header** — brand identity (logo + event name) occupies row 1; the five operational fields (Doors, Show, Countdown, Attendance, Last updated) occupy an independent `grid-cols-5` row 2, so they never compete or overlap at any viewport width
+- **Status color centralization** — all status badge and text classes live in `src/lib/status-styles.ts` as typed constants, so every Ready / Watch / Action Required color is defined in one place and imported where needed
+- **Typography** — Geist Variable for all text; `font-black` on primary headings and key numbers for high-energy readability at a glance
 
 ---
 
@@ -84,7 +97,7 @@ npm run build
 
 Then open the URL Vite prints (usually `http://localhost:5173`).
 
-> Note: state persists in `localStorage`. To return to the original 87% / three-alert starting scenario, use the **Reset scenario** button in the header, or clear the site's `localStorage`.
+> **Note:** state persists in `localStorage`. To return to the original 87% / three-alert starting scenario, use the **Reset scenario** button in the top header, or clear the site's `localStorage`.
 
 ---
 
@@ -93,9 +106,10 @@ Then open the URL Vite prints (usually `http://localhost:5173`).
 ```
 src/
   app/            routes, layout/shell, auth guard
+  assets/         static assets (login-background.png)
   components/     dashboard, category detail, resolution flows, shared UI
   data/           mock seed data (event, categories, alerts, staff roster)
-  lib/            readiness engine (pure, tested)
+  lib/            readiness engine (pure, tested); status-styles.ts (status color constants)
   store/          Zustand store + persistence
 docs/
   StageRight_PRD.md   full product requirements
